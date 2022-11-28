@@ -1,0 +1,20 @@
+= kafka-stream-opensearch
+
+[source,shell]
+----
+docker-compose up -d --build
+----
+
+== ksqldb-server
+
+[source,shell]
+----
+docker exec -it ksqldb-cli ksql http://ksqldb-server:8088
+----
+
+[source,sql]
+----
+CREATE TABLE orders (key VARCHAR PRIMARY KEY, id VARCHAR, customerId BIGINT, state VARCHAR, product VARCHAR, quantity INT, price DOUBLE) WITH (kafka_topic='orders', key_format='kafka', value_format='json');
+CREATE TABLE warehouse_inventory (id VARCHAR PRIMARY KEY, productType VARCHAR) WITH (kafka_topic='warehouse-inventory', key_format='kafka', value_format='json');
+CREATE STREAM order_validation (id VARCHAR KEY, orderId VARCHAR, checkType VARCHAR, validationResult VARCHAR) WITH (kafka_topic='order-validation', key_format='kafka', value_format='json');
+----
