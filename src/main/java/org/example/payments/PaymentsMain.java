@@ -1,22 +1,20 @@
-package org.example.inventory;
+package org.example.payments;
 
 import io.dropwizard.Application;
 import io.dropwizard.Configuration;
 import io.dropwizard.configuration.ResourceConfigurationSourceProvider;
 import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
-import lombok.extern.slf4j.Slf4j;
 
 import java.util.Arrays;
 import java.util.stream.Stream;
 
-@Slf4j
-public class InventoryMain extends Application<Configuration> {
+public class PaymentsMain extends Application<Configuration> {
 
     public static void main(String[] args) throws Exception {
-        var appArgs = Stream.concat(Stream.of("server", "/config-inventory.yml"), Arrays.stream(args))
+        var appArgs = Stream.concat(Stream.of("server", "/config-payments.yml"), Arrays.stream(args))
                 .toArray(String[]::new);
-        new InventoryMain().run(appArgs);
+        new PaymentsMain().run(appArgs);
     }
 
     @Override
@@ -27,11 +25,10 @@ public class InventoryMain extends Application<Configuration> {
 
     @Override
     public void run(Configuration configuration, Environment environment) {
-        final var service = new InventoryService();
+        final var service = new PaymentService();
         environment.lifecycle().manage(service);
-        final var resource = new InventoryResource(service);
+        final var resource = new PaymentsResource(service);
         environment.jersey().register(resource);
-        log.info("App running");
     }
 
 }

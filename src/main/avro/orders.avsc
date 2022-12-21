@@ -1,0 +1,69 @@
+[
+  {
+    "namespace": "org.example.avro",
+    "type": "enum",
+    "name": "OrderState",
+    "symbols": [
+      "CREATED",
+      "VALIDATED",
+      "FAILED",
+      "SHIPPED"
+    ]
+  },
+  {
+    "namespace": "org.example.avro",
+    "type": "enum",
+    "name": "Product",
+    "symbols": [
+      "JUMPERS",
+      "UNDERPANTS",
+      "STOCKINGS"
+    ]
+  },
+  {
+    "namespace": "org.example.avro",
+    "type": "record",
+    "name": "Order",
+    "fields": [
+      {
+        "name": "id",
+        "type": "string"
+      },
+      {
+        "name": "customerId",
+        "type": "int"
+      },
+      {
+        "name": "state",
+        "type": "OrderState"
+      },
+      {
+        "name": "product",
+        "type": "Product"
+      },
+      {
+        "name": "quantity",
+        "type": "int"
+      },
+      {
+        "name": "price",
+        "type": "double"
+      }
+    ]
+  },
+  {
+    "namespace": "org.example.avro",
+    "type": "record",
+    "name": "OrderValue",
+    "fields": [
+      {
+        "name": "order",
+        "type": "Order"
+      },
+      {
+        "name": "value",
+        "type": "double"
+      }
+    ]
+  }
+]

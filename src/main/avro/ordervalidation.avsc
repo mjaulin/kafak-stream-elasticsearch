@@ -1,0 +1,40 @@
+[
+  {
+    "namespace": "org.example.avro",
+    "type": "enum",
+    "name": "OrderValidationType",
+    "symbols": [
+      "INVENTORY_CHECK",
+      "FRAUD_CHECK"
+    ]
+  },
+  {
+    "namespace": "org.example.avro",
+    "type": "enum",
+    "name": "OrderValidationResult",
+    "symbols": [
+      "PASS",
+      "FAIL",
+      "ERROR"
+    ]
+  },
+  {
+    "namespace": "org.example.avro",
+    "type": "record",
+    "name": "OrderValidation",
+    "fields": [
+      {
+        "name": "orderId",
+        "type": "string"
+      },
+      {
+        "name": "checkType",
+        "type": "OrderValidationType"
+      },
+      {
+        "name": "validationResult",
+        "type": "OrderValidationResult"
+      }
+    ]
+  }
+]

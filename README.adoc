@@ -14,7 +14,13 @@ docker exec -it ksqldb-cli ksql http://ksqldb-server:8088
 
 [source,sql]
 ----
-CREATE TABLE orders (key VARCHAR PRIMARY KEY, id VARCHAR, customerId BIGINT, state VARCHAR, product VARCHAR, quantity INT, price DOUBLE) WITH (kafka_topic='orders', key_format='kafka', value_format='json');
-CREATE TABLE warehouse_inventory (id VARCHAR PRIMARY KEY, productType VARCHAR) WITH (kafka_topic='warehouse-inventory', key_format='kafka', value_format='json');
-CREATE STREAM order_validation (id VARCHAR KEY, orderId VARCHAR, checkType VARCHAR, validationResult VARCHAR) WITH (kafka_topic='order-validation', key_format='kafka', value_format='json');
+CREATE STREAM orders_stream (key VARCHAR KEY, id VARCHAR, customerId BIGINT, state VARCHAR, product VARCHAR, quantity INT, price DOUBLE) WITH (kafka_topic='orders', key_format='kafka', value_format='json');
+
+CREATE TABLE orders_table (key VARCHAR PRIMARY KEY, id VARCHAR, customerId BIGINT, state VARCHAR, product VARCHAR, quantity INT, price DOUBLE) WITH (kafka_topic='orders', key_format='kafka', value_format='json');
+CREATE TABLE orders as SELECT * FROM orders_table;
+
+CREATE STREAM warehouse_inventory_stream (id VARCHAR KEY, productType BIGINT) WITH (kafka_topic='warehouse-inventory', format='kafka');
+
+CREATE STREAM orders_validation_stream (id VARCHAR KEY, orderId VARCHAR, checkType VARCHAR, validationResult VARCHAR) WITH (kafka_topic='orders-validation', key_format='kafka', value_format='json');
+
 ----

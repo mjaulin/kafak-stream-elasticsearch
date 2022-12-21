@@ -1,7 +1,7 @@
 version: '3.0'
 services:
   zookeeper:
-    image: confluentinc/cp-zookeeper:7.3.0
+    image: confluentinc/cp-zookeeper:7.3.1
     hostname: zookeeper
     container_name: zookeeper
     ports:
@@ -13,7 +13,7 @@ services:
       - kafka
 
   broker:
-    image: confluentinc/cp-kafka:7.3.0
+    image: confluentinc/cp-kafka:7.3.1
     hostname: broker
     container_name: broker
     depends_on:
@@ -24,11 +24,50 @@ services:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:9092,PLAINTEXT_HOST://localhost:29092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_JMX_PORT: 9997
+      KAFKA_JMX_HOSTNAME: localhost
+      KAFKA_JMX_OPTS: -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=broker -Dcom.sun.management.jmxremote.rmi.port=9997
+    networks:
+      - kafka
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.3.1
+    hostname: schema-registry
+    container_name: schema-registry
+    ports:
+      - '8081:8081'
+    depends_on:
+      - zookeeper
+      - broker
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'broker:9092'
+      SCHEMA_REGISTRY_LISTENERS: "http://0.0.0.0:8081"
+      SCHEMA_REGISTRY_KAFKASTORE_CONNECTION_URL: zookeeper:2181
+    networks:
+      - kafka
+
+  kafka-create-topics:
+    image: confluentinc/cp-kafka:7.3.1
+    container_name: kafka-create-topics
+    depends_on:
+      - broker
+    command: "bash -c 'echo Waiting for Kafka to be ready... && \
+        cub kafka-ready -b broker:9092 1 20 && \
+        kafka-topics --create --topic orders --partitions 3 --replication-factor 1 --if-not-exists --bootstrap-server broker:9092 && \
+        kafka-topics --create --topic warehouse-inventory --partitions 3 --replication-factor 1 --if-not-exists --bootstrap-server broker:9092 && \
+        kafka-topics --create --topic orders-validation --partitions 3 --replication-factor 1 --if-not-exists --bootstrap-server broker:9092 && \
+        kafka-topics --create --topic payments --partitions 3 --replication-factor 1 --if-not-exists --bootstrap-server broker:9092 && \
+        kafka-topics --create --topic customers --partitions 3 --replication-factor 1 --if-not-exists --bootstrap-server broker:9092'"
+    environment:
+      KAFKA_BROKER_ID: ignored
+      KAFKA_ZOOKEEPER_CONNECT: ignored
     networks:
       - kafka
 
@@ -43,6 +82,7 @@ services:
     environment:
       KSQL_LISTENERS: http://0.0.0.0:8088
       KSQL_BOOTSTRAP_SERVERS: broker:9092
+      KSQL_KSQL_SCHEMA_REGISTRY_URL: http://schema-registry:8081
       KSQL_KSQL_LOGGING_PROCESSING_STREAM_AUTO_CREATE: 'true'
       KSQL_KSQL_LOGGING_PROCESSING_TOPIC_AUTO_CREATE: 'true'
     networks:
@@ -78,16 +118,6 @@ services:
     networks:
       - elasticsearch
 
-  kibana:
-    container_name: kibana
-    image: docker.elastic.co/kibana/kibana:8.5.2
-    ports:
-      - '5601:5601'
-    depends_on:
-      - elasticsearch
-    environment:
-      ELASTICSEARCH_HOSTS: '["http://elasticsearch:9200"]'
-
   kafka-connect:
     container_name: kafka-connect
     build:
@@ -96,36 +126,66 @@ services:
     ports:
       - '8083:8083'
     depends_on:
-      - zookeeper
       - broker
+      - schema-registry
       - elasticsearch
+      - postgresql
     environment:
       CONNECT_BOOTSTRAP_SERVERS: broker:9092
-      CONNECT_REST_PORT: 8083
       CONNECT_GROUP_ID: 'connect'
-      CONNECT_CONFIG_STORAGE_TOPIC: connect-config
-      CONNECT_OFFSET_STORAGE_TOPIC: connect-offsets
-      CONNECT_STATUS_STORAGE_TOPIC: connect-status
-      CONNECT_REPLICATION_FACTOR: 1
+      CONNECT_CONFIG_STORAGE_TOPIC: _connect-config
       CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_OFFSET_STORAGE_TOPIC: _connect-offsets
       CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_STATUS_STORAGE_TOPIC: _connect-status
       CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
       CONNECT_KEY_CONVERTER: 'org.apache.kafka.connect.storage.StringConverter'
-      CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE: 'false'
-      CONNECT_VALUE_CONVERTER: 'org.apache.kafka.connect.json.JsonConverter'
-      CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: 'false'
-      CONNECT_INTERNAL_KEY_CONVERTER: 'org.apache.kafka.connect.storage.StringConverter'
+      CONNECT_VALUE_CONVERTER: 'io.confluent.connect.avro.AvroConverter'
+      CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      CONNECT_INTERNAL_KEY_CONVERTER: 'org.apache.kafka.connect.json.JsonConverter'
       CONNECT_INTERNAL_VALUE_CONVERTER: 'org.apache.kafka.connect.json.JsonConverter'
-      CONNECT_PRODUCER_INTERCEPTOR_CLASSES: 'io.confluent.monitoring.clients.interceptor.MonitoringProducerInterceptor'
-      CONNECT_CONSUMER_INTERCEPTOR_CLASSES: 'io.confluent.monitoring.clients.interceptor.MonitoringConsumerInterceptor'
-      CONNECT_REST_ADVERTISED_HOST_NAME: 'localhost'
-      CONNECT_ZOOKEEPER_CONNECT: zookeeper:2181
+      CONNECT_REST_ADVERTISED_HOST_NAME: 'kafka-connect'
       CONNECT_LOG4J_ROOT_LOGLEVEL: INFO
       CONNECT_LOG4J_LOGGERS: org.reflections=ERROR
     networks:
       - elasticsearch
       - kafka
+      - postgresql
+
+  kafka-ui:
+    container_name: kafka-ui
+    image: provectuslabs/kafka-ui:latest
+    ports:
+      - "8080:8080"
+    depends_on:
+      - broker
+      - schema-registry
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: broker:9092
+      KAFKA_CLUSTERS_0_METRICS_PORT: 9997
+      KAFKA_CLUSTERS_0_SCHEMAREGISTRY: http://schema-registry:8081
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_NAME: kafka-connect
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS: http://kafka-connect:8083
+    networks:
+      - kafka
+
+  postgresql:
+    container_name: postgresql
+    hostname: postgresql
+    image: postgres:13.9-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_PASSWORD: admin
+      POSTGRES_USER: admin
+      POSTGRES_DB: kafka-stream
+    volumes:
+      - ./db:/docker-entrypoint-initdb.d
+    networks:
+      - postgresql
 
 networks:
   elasticsearch:
   kafka:
+  postgresql:

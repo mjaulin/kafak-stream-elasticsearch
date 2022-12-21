@@ -1,4 +1,4 @@
-package org.example.util;
+package org.example.common;
 
 import io.dropwizard.lifecycle.Managed;
 import lombok.AccessLevel;
@@ -8,8 +8,8 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.streams.KafkaStreams;
+import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
-import org.example.domain.Schemas;
 
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
@@ -23,7 +23,8 @@ public final class MicroserviceUtils {
 
     private static final Long CALL_TIMEOUT = 10000L;
 
-    public static void startStreams(KafkaStreams streams) {
+    public static KafkaStreams startStreams(StreamsBuilder builder, Properties config) {
+        final var streams = new KafkaStreams(builder.build(), config);
         streams.cleanUp(); // don't do this in prod as it clears your state stores
         final CountDownLatch startLatch = new CountDownLatch(1);
         streams.setStateListener((newState, oldState) -> {
@@ -41,7 +42,8 @@ public final class MicroserviceUtils {
         } catch (final InterruptedException e) {
             Thread.currentThread().interrupt();
         }
-        log.info("Service started");
+        log.info("Streams started");
+        return streams;
     }
 
     public static void setTimeout(final AsyncResponse asyncResponse) {
@@ -56,7 +58,7 @@ public final class MicroserviceUtils {
         final Properties producerConfig = new Properties();
         producerConfig.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:29092");
         producerConfig.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "true");
-        producerConfig.put(ProducerConfig.RETRIES_CONFIG, String.valueOf(Integer.MAX_VALUE));
+        producerConfig.put(ProducerConfig.RETRIES_CONFIG, 1);
         producerConfig.put(ProducerConfig.ACKS_CONFIG, "all");
         producerConfig.put(ProducerConfig.CLIENT_ID_CONFIG, appId);
 

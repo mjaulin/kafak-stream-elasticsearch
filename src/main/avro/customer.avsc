@@ -1,0 +1,33 @@
+{
+  "type": "record",
+  "name": "Customer",
+  "namespace": "org.example.avro",
+  "fields": [
+    {
+      "name": "id",
+      "type": "int"
+    },
+    {
+      "name": "firstname",
+      "type": "string"
+    },
+    {
+      "name": "lastname",
+      "type": "string"
+    },
+    {
+      "name": "email",
+      "type": "string"
+    },
+    {
+      "name": "address",
+      "type": "string"
+    },
+    {
+      "name": "level",
+      "type": "string"
+    }
+  ],
+  "connect.version": 1,
+  "connect.name": "org.example.avro.Customer"
+}
